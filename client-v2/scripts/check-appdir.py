@@ -2,6 +2,7 @@
 """Check deployment contents and ELF metadata without trusting host Qt search paths."""
 import os
 import hashlib
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -15,6 +16,7 @@ required = ['AppRun', 'rutool.desktop', 'rutool.svg', 'usr/bin/RuTool',
             'usr/qml/QtQuick/Controls/qmldir', 'usr/qml/QtQuick/Dialogs/qmldir',
             'usr/qml/QtQuick/Shapes/qmldir', 'usr/qml/QtQuick/Templates/qmldir',
             'usr/qml/QtQuick/Window/qmldir',
+            'usr/qml/QtQuick/Effects/qmldir',
             'usr/qml/QtQuick/Layouts/qmldir', 'usr/qml/QtQml/WorkerScript/qmldir']
 for name in required:
     if not (root/name).is_file():
@@ -45,11 +47,15 @@ for path in root.rglob('*'):
         original = Path(__file__).resolve().parents[1]/'config/installer-keys.json'
         if str(relative) != 'usr/bin/app/config/installer-keys.json' or hashlib.sha256(path.read_bytes()).digest() != hashlib.sha256(original.read_bytes()).digest():
             errors.append(f'Unexpected installer configuration: {relative}')
+    if path.name == 'update-public.der':
+        original = Path(__file__).resolve().parents[1]/'config/update-public.der'
+        if str(relative) != 'usr/bin/app/config/update-public.der' or path.read_bytes() != original.read_bytes():
+            errors.append(f'Unexpected update public key: {relative}')
     if path.suffix.lower() in {'.pem', '.key', '.pfx', '.p12'}:
         errors.append(f'Potential secret in AppDir: {path.relative_to(root)}')
-    if (path.suffix.lower() in {'.rut', '.zip', '.py', '.pyc', '.o', '.a', '.cmake', '.cpp', '.hpp', '.h', '.debug'}
+    if (path.suffix.lower() in {'.rut', '.zip', '.py', '.pyc', '.o', '.a', '.cmake', '.cpp', '.hpp', '.h', '.debug', '.exe'}
             or path.name in {'CMakeCache.txt', 'build.ninja', 'compile_commands.json'}
-            or any(word in path.name.lower() for word in ['qttest', 'rutool_linux_tests', 'ctest', 'generate_fixtures', 'diagnostics', 'benchmarks'])):
+            or any(word in path.name.lower() for word in ['qttest', 'rutool_linux_tests', 'rutool_linux_ui_tests', 'ctest', 'generate_fixtures', 'diagnostics', 'benchmarks'])):
         errors.append(f'Development/test file: {relative}')
     with path.open('rb') as f:
         header = f.read(20)
@@ -61,6 +67,10 @@ for path in root.rglob('*'):
     interpreter = subprocess.check_output(['readelf', '-lW', str(path)], text=True)
     if '/nix/store/' in metadata + interpreter:
         errors.append(f'Nix store dependency: {path.relative_to(root)}')
+    versions = subprocess.check_output(['readelf', '--version-info', '-W', str(path)], text=True)
+    if any(tuple(map(int, version.split('.'))) > (2, 39)
+           for version in re.findall(r'\bGLIBC_(\d+\.\d+(?:\.\d+)?)\b', versions)):
+        errors.append(f'Requires glibc newer than 2.39: {relative}')
     sections = subprocess.check_output(['readelf', '-SW', str(path)], text=True)
     if '.debug_info' in sections or '.zdebug_info' in sections:
         errors.append(f'Debug information in release ELF: {path.relative_to(root)}')

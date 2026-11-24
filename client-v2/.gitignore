@@ -2,6 +2,9 @@
 /build-*/
 /out/
 /tests/
+!/tests/
+/tests/*
+!/tests/linux/
 /benchmarks/
 /CMakeUserPresets.json
 /RELEASE_README.md

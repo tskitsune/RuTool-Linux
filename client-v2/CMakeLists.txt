@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(RuTool VERSION 2.0.8 LANGUAGES C CXX)
+project(RuTool VERSION 2.1.1 LANGUAGES C CXX)
 set(RUTOOL_APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Native client release version")
 if(NOT RUTOOL_APP_VERSION MATCHES "^[0-9]+[.][0-9]+[.][0-9]+$")
     message(FATAL_ERROR "RUTOOL_APP_VERSION must be a three-part version")
@@ -252,7 +252,7 @@ if(RUTOOL_PRIVATE_TESTS AND WIN32)
     set_tests_properties(production_payload_report_workflow PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;RUTOOL_TEST_PAYLOAD=$<TARGET_FILE:RuToolPayload>" TIMEOUT 20)
     add_test(NAME qml_smoke COMMAND RuToolDiagnostics --smoke --screenshot ${CMAKE_CURRENT_BINARY_DIR}/qml-smoke.png --audit ${CMAKE_CURRENT_BINARY_DIR}/qml-layout.json)
     set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_FONT_DPI=96" TIMEOUT 20)
-    foreach(scene credits dark-credits credits-data credits-empty disclaimer disclaimer-small report report-scroll report-attachments small small-actions large package-error checking downloading dark-downloading update-available resize focus dark dark-report dark-disclaimer catalog dark-catalog catalog-data catalog-premium dark-catalog-premium boosty-code dark-boosty-code catalog-server dark-catalog-server faq license consent theme-transition download-focus panel-hover)
+    foreach(scene credits dark-credits credits-data credits-empty disclaimer disclaimer-small report report-scroll report-attachments small small-actions settings large package-error checking downloading dark-downloading update-available resize focus dark dark-report dark-disclaimer catalog dark-catalog catalog-data catalog-premium dark-catalog-premium boosty-code dark-boosty-code catalog-server dark-catalog-server faq license consent theme-transition download-focus panel-hover)
         add_test(NAME qml_${scene} COMMAND RuToolDiagnostics --smoke --scene ${scene} --screenshot ${CMAKE_CURRENT_BINARY_DIR}/qml-${scene}.png)
         set_tests_properties(qml_${scene} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_FONT_DPI=96" TIMEOUT 20)
     endforeach()
@@ -276,10 +276,28 @@ if(UNIX)
     install(FILES packaging/linux/rutool.desktop DESTINATION share/applications)
     install(FILES packaging/linux/rutool.svg DESTINATION share/icons/hicolor/scalable/apps)
     if(BUILD_TESTING)
+        find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
         qt_add_executable(rutool_linux_tests tests/linux/LinuxTests.cpp)
         target_link_libraries(rutool_linux_tests PRIVATE Qt6::Test Qt6::Network rutool_core rutool_security rutool_network rutool_portable_crypto)
         target_compile_definitions(rutool_linux_tests PRIVATE RUTOOL_LINUX_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/linux/fixtures")
+        target_compile_definitions(rutool_linux_tests PRIVATE RUTOOL_PYTHON="${Python3_EXECUTABLE}"
+            RUTOOL_DELTA_GENERATOR="${CMAKE_CURRENT_SOURCE_DIR}/scripts/build-addon-delta.py")
         rutool_quality(rutool_linux_tests)
+        qt_add_executable(rutool_linux_ui_tests tests/linux/UiTests.cpp
+            src/app/ClientController.cpp src/app/ClientOperations.cpp src/app/ClientUpdates.cpp
+            src/app/ClientPremium.cpp src/app/ClientController.hpp)
+        target_include_directories(rutool_linux_ui_tests PRIVATE src/app)
+        target_link_libraries(rutool_linux_ui_tests PRIVATE Qt6::Test Qt6::Quick Qt6::QuickControls2
+            Qt6::Concurrent rutool_network rutool_ui_support)
+        qt_add_qml_module(rutool_linux_ui_tests URI RuTool.App VERSION 1.0 NO_PLUGIN
+            OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qml-targets/rutool_linux_ui_tests/RuTool/App"
+            QML_FILES ${rutool_qml_files})
+        qt_add_resources(rutool_linux_ui_tests ui_test_artwork PREFIX /assets BASE assets
+            FILES assets/Background.png assets/BackgroundDark.jpg assets/Arona.gif assets/RuTool.ico assets/License.txt)
+        rutool_quality(rutool_linux_ui_tests)
+        add_test(NAME linux_qml_workflows COMMAND rutool_linux_ui_tests)
+        set_tests_properties(linux_qml_workflows PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software" TIMEOUT 45)
         add_test(NAME linux_platform_and_crypto COMMAND rutool_linux_tests)
         add_test(NAME linux_production_qml COMMAND RuTool --smoke-test --smoke-screenshot "${CMAKE_CURRENT_BINARY_DIR}/linux-smoke.png")
         set_tests_properties(linux_production_qml PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software" TIMEOUT 20)

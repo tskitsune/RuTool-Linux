@@ -1,4 +1,4 @@
-# RuTool 2.0.8 на Linux
+# RuTool 2.1.1 на Linux
 
 RuTool находит Blue Archive, скачивает и устанавливает перевод, восстанавливает
 оригинальные файлы. Готовая сборка — AppImage для x86_64 с glibc 2.39 или новее.
@@ -6,23 +6,24 @@ Qt и QML-модули уже включены; графические драй�
 
 ## Запуск
 
-Скачай AppImage из [релизов](https://github.com/tskitsune/RuTool-Linux/releases/tag/v2.0.8-linux):
+Скачай AppImage из [релиза 2.1.1](https://github.com/tskitsune/RuTool-Linux/releases/tag/v2.1.1-linux).
+Результат локальной сборки находится в `dist-appimage-2.1.1/`:
 
 ```sh
-chmod +x RuTool-2.0.8-x86_64.AppImage
-./RuTool-2.0.8-x86_64.AppImage
+chmod +x RuTool-2.1.1-x86_64.AppImage
+./RuTool-2.1.1-x86_64.AppImage
 ```
 
 Если FUSE недоступен:
 
 ```sh
-./RuTool-2.0.8-x86_64.AppImage --appimage-extract-and-run
+./RuTool-2.1.1-x86_64.AppImage --appimage-extract-and-run
 ```
 
 На NixOS:
 
 ```sh
-appimage-run ./RuTool-2.0.8-x86_64.AppImage
+appimage-run ./RuTool-2.1.1-x86_64.AppImage
 ```
 
 ## Сборка AppImage
@@ -30,10 +31,10 @@ appimage-run ./RuTool-2.0.8-x86_64.AppImage
 Нужны Docker и доступ к сети. Из каталога `client-v2`:
 
 ```sh
-./scripts/build-appimage-container.sh dist-appimage
+./scripts/build-appimage-container.sh dist-appimage-2.1.1
 ```
 
-Результат — `dist-appimage/RuTool-2.0.8-x86_64.AppImage` и файл `SHA256SUMS`.
+Результат — `dist-appimage-2.1.1/RuTool-2.1.1-x86_64.AppImage` и файл `SHA256SUMS`.
 Для повторной сборки укажи новый каталог, например `dist-appimage-rebuild`.
 
 Сценарий собирает клиент с тестами, запускает CTest, затем отдельно собирает
@@ -42,8 +43,8 @@ appimage-run ./RuTool-2.0.8-x86_64.AppImage
 Тесты, фикстуры и файлы разработки в пакет не устанавливаются.
 
 Сборка использует Ubuntu 24.04, GCC 14 и Qt 6.8.3. Qt SDK хранится в
-`build-linux-sdk/`, тестовая сборка — в `build-linux-release-tests/`,
-релизная — в `build-appimage/`. Для тестов используется искусственный
+`build-linux-sdk/`, тестовая сборка — в `build-linux-2.1.1-tests/`,
+релизная — в `build-appimage-2.1.1/`. Для тестов используется искусственный
 `machine-id`; данные системы в пакет не копируются.
 
 Образ Ubuntu закреплён digest, aqtinstall — версией 3.3.0. Версии и SHA-256
@@ -62,22 +63,22 @@ appimage-run ./RuTool-2.0.8-x86_64.AppImage
 
 ```sh
 ./scripts/verify-appimage-clean.sh \
-  dist-appimage/RuTool-2.0.8-x86_64.AppImage build-linux-validation
+  dist-appimage-2.1.1/RuTool-2.1.1-x86_64.AppImage build-linux-validation-2.1.1
 ```
 
-Лог и снимок окна сохраняются в `build-linux-validation/`.
+Лог и снимок окна сохраняются в `build-linux-validation-2.1.1/`.
 Проверка использует пустое окружение и временные каталоги настроек.
 
 Быстрая проверка интерфейса без сети и обращения к игре:
 
 ```sh
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
-  ./dist-appimage/RuTool-2.0.8-x86_64.AppImage --smoke-test
+  ./dist-appimage-2.1.1/RuTool-2.1.1-x86_64.AppImage --smoke-test
 ```
 
 `check-appdir.py` проверяет ELF-зависимости, Qt/QML-модули, плагины, штатную
 конфигурацию и отсутствие тестовых файлов. Проверяются и AppDir, и содержимое
-готового AppImage. Результаты для версии 2.0.8 — в [отчёте](docs/APPIMAGE-2.0.8-VALIDATION.md).
+готового AppImage. Результаты для версии 2.1.1 — в [отчёте](docs/APPIMAGE-2.1.1-VALIDATION.md).
 
 ## Конфигурация и данные
 
@@ -127,6 +128,25 @@ export QMAKE=/path/to/Qt/6.8.3/gcc_64/bin/qmake
 export RUTOOL_TOOLS_DIR="$PWD/build-linux-tools"
 ./scripts/package-appimage.sh build-release dist-manual
 ```
+
+## Новое в 2.1.1
+
+Папка игры, ручной выбор `.rut`, восстановление основного перевода и тема
+находятся в настройках (кнопка с шестерёнкой). Каталог открывается справа.
+Для обновления Linux по-прежнему нужно заменить AppImage вручную.
+Windows-обновлятор на Linux не собирается и не запускается.
+
+Русские экраны загрузки — отдельное Premium-дополнение. Нужны действующий
+код бусти и поддерживаемый исходный bundle игры. Размер, SHA-256 загрузки,
+исходного файла и результата проверяются до замены; применяется формат `RUTD1`.
+Произвольные и уже изменённые версии bundle не принимаются.
+Оригинал хранится в `RuToolInstaller/Backups/Addons/loading-screens/`.
+Кнопка восстановления основного перевода не восстанавливает это дополнение;
+отдельного интерфейса восстановления дополнения upstream 2.1.1 не предоставляет.
+
+Сборочный сценарий использует каталоги с номером версии, сохраняя прежние сборки.
+Их можно переопределить через `RUTOOL_TEST_BUILD_DIR` и `RUTOOL_RELEASE_BUILD_DIR`
+(имена `build-*` без слешей). Для повторной упаковки выбирай новый выходной каталог.
 
 Тесты работают с временными каталогами и синтетическими файлами.
 Для пересоздания криптографических фикстур нужен Python с `cryptography >=43`;
